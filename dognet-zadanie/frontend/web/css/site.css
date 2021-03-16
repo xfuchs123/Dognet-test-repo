@@ -118,3 +118,11 @@ a.desc:after {
 .nav > li > form > button.logout:focus {
     outline: none;
 }
+
+.company-summary {
+    background: #337ab7;
+    color: white;
+    padding: 10px;
+    text-align: right;
+    border: lightgrey 1px solid;
+}

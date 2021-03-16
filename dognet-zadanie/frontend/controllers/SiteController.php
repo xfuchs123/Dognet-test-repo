@@ -1,10 +1,13 @@
 <?php
 namespace frontend\controllers;
 
+use common\models\Company;
+use common\models\User;
 use frontend\models\ResendVerificationEmailForm;
 use frontend\models\VerifyEmailForm;
 use Yii;
 use yii\base\InvalidArgumentException;
+use yii\data\ActiveDataProvider;
 use yii\web\BadRequestHttpException;
 use yii\web\Controller;
 use yii\filters\VerbFilter;
@@ -27,7 +30,7 @@ class SiteController extends Controller
     {
         return [
             'access' => [
-                'class' => AccessControl::className(),
+                'class' => AccessControl::class,
                 'only' => ['logout', 'signup'],
                 'rules' => [
                     [
@@ -43,7 +46,7 @@ class SiteController extends Controller
                 ],
             ],
             'verbs' => [
-                'class' => VerbFilter::className(),
+                'class' => VerbFilter::class,
                 'actions' => [
                     'logout' => ['post'],
                 ],
@@ -91,13 +94,13 @@ class SiteController extends Controller
         $model = new LoginForm();
         if ($model->load(Yii::$app->request->post()) && $model->login()) {
             return $this->goBack();
-        } else {
-            $model->password = '';
-
-            return $this->render('login', [
-                'model' => $model,
-            ]);
         }
+
+        $model->password = '';
+
+        return $this->render('login', [
+            'model' => $model,
+        ]);
     }
 
     /**
@@ -128,11 +131,11 @@ class SiteController extends Controller
             }
 
             return $this->refresh();
-        } else {
-            return $this->render('contact', [
-                'model' => $model,
-            ]);
         }
+
+        return $this->render('contact', [
+            'model' => $model,
+        ]);
     }
 
     /**
@@ -176,9 +179,9 @@ class SiteController extends Controller
                 Yii::$app->session->setFlash('success', 'Check your email for further instructions.');
 
                 return $this->goHome();
-            } else {
-                Yii::$app->session->setFlash('error', 'Sorry, we are unable to reset password for the provided email address.');
             }
+
+            Yii::$app->session->setFlash('error', 'Sorry, we are unable to reset password for the provided email address.');
         }
 
         return $this->render('requestPasswordResetToken', [
@@ -193,7 +196,7 @@ class SiteController extends Controller
      * @return mixed
      * @throws BadRequestHttpException
      */
-    public function actionResetPassword($token)
+    public function actionResetPassword(string $token)
     {
         try {
             $model = new ResetPasswordForm($token);
@@ -216,10 +219,10 @@ class SiteController extends Controller
      * Verify email address
      *
      * @param string $token
-     * @throws BadRequestHttpException
      * @return yii\web\Response
+     * @throws BadRequestHttpException
      */
-    public function actionVerifyEmail($token)
+    public function actionVerifyEmail(string $token)
     {
         try {
             $model = new VerifyEmailForm($token);
@@ -256,5 +259,36 @@ class SiteController extends Controller
         return $this->render('resendVerificationEmail', [
             'model' => $model
         ]);
+    }
+
+    /**
+     * Displays company associated data
+     *
+     * @return mixed
+     */
+    public function actionCompany()
+    {
+        $users = User::find()->select('username')->where(['status' => User::STATUS_ACTIVE])->indexBy('id')->column();
+        $model = new Company();
+
+
+        if($model->load(Yii::$app->request->post()) && $model->save(true))
+        {
+            Yii::$app->session->setFlash('success', 'Company saved successfully');
+            $model = new Company();
+        }
+        $companies = new ActiveDataProvider([
+            'query' => Company::find()->joinWith('user')->select(['company.id','name','country','vat_id','fk_user','username']),
+            'pagination' => ['pageSize' => 5],
+            'sort' => [
+                    'attributes' => [
+                        'name',
+                        'vat_id',
+                        'user.username'
+                    ]
+            ],
+        ]);
+
+        return $this->render('company', ['model' => $model, 'users' => $users, 'companies' => $companies, 'countries' => Company::getCountries()]);
     }
 }
